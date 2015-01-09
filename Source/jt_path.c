@@ -45,34 +45,6 @@ void jt_path_free (jt_path *path)
     free (path);
 }
 
-/*
- * Note: This works okay, although could use some improvement.
- *
- * Consider:
- *
- *       s  #  g
- *          #
- *
- * A diagonal will be taken on the left side, but not the right side.
- * This occurrs due to the node above the wall not being able to extend
- * down, so it gets locked in the y axis. A better solution would allow
- * a new block to begin as soon as the wall is out of the way.
- *
- * Instead of:
- *       aa*bbb*
- *       aaa#  c
- *          #
- *
- * It would be better to get:
- *       aa*b*cc
- *       aaa#ccc
- *          #
- *
- * One possibility is to force a node into the path when we detect that
- * we have gone past an obstacle. Or when we detect a non-clear block,
- * find out where in the non-extending axis the obstruction occurrs and
- * force a node at that point in the non-extending direction.
- */
 jt_path *jt_path_simplify (ASPath original_path)
 {
     jt_path *new_path = malloc (sizeof (jt_path));
@@ -113,30 +85,65 @@ void jt_path_node_neighbours (ASNeighborList neighbors, void *node, void *contex
 {
     jt_path_node *path_node = (jt_path_node *) node;
 
-    jt_path_node north = { path_node->x,     path_node->y - 1 };
-    jt_path_node south = { path_node->x,     path_node->y + 1 };
-    jt_path_node east  = { path_node->x + 1, path_node->y     };
-    jt_path_node west  = { path_node->x - 1, path_node->y     };
+    jt_path_node north     = { path_node->x,     path_node->y - 1 };
+    jt_path_node south     = { path_node->x,     path_node->y + 1 };
+    jt_path_node east      = { path_node->x + 1, path_node->y     };
+    jt_path_node west      = { path_node->x - 1, path_node->y     };
+
+    jt_path_node northeast = { path_node->x + 1, path_node->y - 1 };
+    jt_path_node northwest = { path_node->x - 1, path_node->y - 1 };
+    jt_path_node southeast = { path_node->x + 1, path_node->y + 1 };
+    jt_path_node southwest = { path_node->x - 1, path_node->y + 1 };
+
+    int have_north = 0;
+    int have_south = 0;
+    int have_east  = 0;
+    int have_west  = 0;
 
     /* North */
     if (north.y >= 0 && world[north.y][north.x] == 0)
     {
         ASNeighborListAdd(neighbors, &north, 1);
+        have_north = 1;
     }
     /* South */
     if (south.y < 33 && world[south.y][south.x] == 0)
     {
         ASNeighborListAdd(neighbors, &south, 1);
+        have_south = 1;
     }
     /* East */
     if (east.x < 60 && world[east.y][east.x] == 0)
     {
         ASNeighborListAdd(neighbors, &east, 1);
+        have_east = 1;
     }
     /* West */
     if (west.x >= 0 && world[west.y][west.x] == 0)
     {
         ASNeighborListAdd(neighbors, &west, 1);
+        have_west = 1;
+    }
+
+    /* Northeast */
+    if (have_north && have_east && world[northeast.y][northeast.x] == 0)
+    {
+        ASNeighborListAdd(neighbors, &northeast, 1);
+    }
+    /* Northwest */
+    if (have_north && have_west && world[northwest.y][northwest.x] == 0)
+    {
+        ASNeighborListAdd(neighbors, &northwest, 1);
+    }
+    /* Southeast */
+    if (have_south && have_east && world[southeast.y][southeast.x] == 0)
+    {
+        ASNeighborListAdd(neighbors, &southeast, 1);
+    }
+    /* Southwest */
+    if (have_south && have_west && world[southwest.y][southwest.x] == 0)
+    {
+        ASNeighborListAdd(neighbors, &southwest, 1);
     }
 }
 

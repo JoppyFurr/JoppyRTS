@@ -168,7 +168,7 @@ int jt_run_game (SDL_Renderer *renderer)
         for (int i = 0; i < 5; i++) /* Currently, five test-units */
         {
             /* For now, we will assume we always get 60 FPS */
-            double distance_per_frame = 4.0 / 60.0; /* Four spaces per second */
+            double distance_per_frame = 5.0 / 60.0; /* Five spaces per second */
             double unit_x = units[i].x_position;
             double unit_y = units[i].y_position;
 
