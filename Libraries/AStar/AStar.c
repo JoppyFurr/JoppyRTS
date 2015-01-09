@@ -31,6 +31,8 @@
 #include <math.h>
 #include <string.h>
 
+#include <stdint.h>
+
 struct __ASNeighborList {
     const ASPathNodeSource *source;
     size_t capacity;
