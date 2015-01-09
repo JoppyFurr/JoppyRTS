@@ -22,7 +22,7 @@ typedef struct jt_unit_struct
     double y_position; /* In grid-space */
     double x_goal;
     double y_goal;
-    ASPath path;
+    jt_path *path;
     int path_progress;
 } jt_unit;
 
@@ -30,8 +30,8 @@ void jt_select_units (int x, int y, jt_unit *units)
 {
     for (int i = 0; i < 5; i++) /* Currently, five test-units */
     {
-        if ( x > (units[i].x_position * 32.0) && x < (units[i].x_position * 32.0 + 32.0) &&
-             y > (units[i].y_position * 32.0) && y < (units[i].y_position * 32.0 + 32.0))
+        if ( x > ((units[i].x_position - 0.5) * 32.0) && x < ((units[i].x_position - 0.5) * 32.0 + 32.0) &&
+             y > ((units[i].y_position - 0.5) * 32.0) && y < ((units[i].y_position - 0.5) * 32.0 + 32.0))
         {
             units[i].selected = 1;
         }
@@ -65,8 +65,13 @@ void jt_move_units (int x, int y, jt_unit *units)
             /* Run the algorithm */
             jt_path_node start = { units[i].x_position, units[i].y_position };
             jt_path_node goal =  { units[i].x_goal,     units[i].y_goal     };
-            units[i].path = ASPathCreate (&jt_path_node_source, NULL, &start, &goal);
+            ASPath path = ASPathCreate (&jt_path_node_source, NULL, &start, &goal);
+
+            /* Simplify the path */
+            units[i].path = jt_path_simplify (path);
             units[i].path_progress = 0;
+
+            ASPathDestroy (path);
         }
     }
 }
@@ -93,11 +98,18 @@ int jt_run_game (SDL_Renderer *renderer)
     /*   0 -> no wall   */
     /*   1 -> wall      */
     memset (world, 0, sizeof (int) * 33 * 60);
+
     /* horseshoe */
     world [10][29] = 1; world [10][28] = 1; world [10][27] = 1;
     world [10][30] = 1; world [11][30] = 1; world [12][30] = 1;
     world [13][30] = 1; world [14][30] = 1; world [14][29] = 1;
     world [14][28] = 1; world [14][27] = 1;
+
+    /* One block gap */
+    world [10][45] = 1; world [11][45] = 1; world [12][45] = 1;
+    world [13][45] = 1; world [14][45] = 1; world [16][45] = 1;
+    world [17][45] = 1; world [18][45] = 1; world [19][45] = 1;
+    world [20][45] = 1;
 
 
     /* Load textures */
@@ -162,14 +174,14 @@ int jt_run_game (SDL_Renderer *renderer)
 
             if (units[i].path)
             {
-                if (units[i].path_progress == ASPathGetCount (units[i].path))
+                if (units[i].path_progress == units[i].path->count)
                 {
-                    ASPathDestroy (units[i].path);
+                    jt_path_free (units[i].path);
                     units[i].path = NULL;
                 }
                 else
                 {
-                    jt_path_node *path_node = ASPathGetNode (units[i].path, units[i].path_progress);
+                    jt_path_node *path_node = &units[i].path->nodes[units[i].path_progress];
                     double goal_x = path_node->x + 0.5;
                     double goal_y = path_node->y + 0.5;
                     double distance = sqrt ((unit_x - goal_x) * (unit_x - goal_x) +
