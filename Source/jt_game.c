@@ -54,6 +54,10 @@ void jt_move_units (int x, int y, jt_unit *units)
 
             /* TODO - If we already have a path, destroy that before
              *        making a new one. */
+            if (units[i].path)
+            {
+                jt_path_free (units[i].path);
+            }
 
             /*  -- TEMP: Use A* -- */
             /* Set up callbacks */
@@ -67,9 +71,13 @@ void jt_move_units (int x, int y, jt_unit *units)
             jt_path_node goal =  { units[i].x_goal,     units[i].y_goal     };
             ASPath path = ASPathCreate (&jt_path_node_source, NULL, &start, &goal);
 
-            /* Simplify the path */
-            units[i].path = jt_path_simplify (path);
-            units[i].path_progress = 0;
+            /* Does a path exist? */
+            if (ASPathGetCount (path) > 0)
+            {
+                /* Simplify the path */
+                units[i].path = jt_path_simplify (path);
+                units[i].path_progress = 0;
+            }
 
             ASPathDestroy (path);
         }
@@ -113,10 +121,10 @@ int jt_run_game (SDL_Renderer *renderer)
 
 
     /* Load textures */
-    SDL_Texture *background_texture     = loadTexture (renderer, "./Media/Greenstuff.png");
+    SDL_Texture *grass_texture     = loadTexture (renderer, "./Media/Grass.png");
     SDL_Texture *selected_unit          = loadTexture (renderer, "./Media/Selected32.png");
     SDL_Texture *unselected_unit        = loadTexture (renderer, "./Media/Unselected32.png");
-    SDL_Texture *wall_texture           = loadTexture (renderer, "./Media/Wall32.png");
+    SDL_Texture *wall_texture           = loadTexture (renderer, "./Media/Wall.png");
 
     /* Set cursor */
     SDL_Cursor* cursor;
@@ -211,7 +219,21 @@ int jt_run_game (SDL_Renderer *renderer)
         /* Background */
         SDL_SetRenderDrawColor (renderer, 0x00, 0x80, 0x00, 0xFF);
         SDL_RenderClear (renderer);
-        SDL_RenderCopy (renderer, background_texture, NULL, NULL);
+
+        /* Silly and trivial for now */
+        /* This will need to be re-done once there is scrolling */
+        /* TODO: Kill the magic numbers! */
+        for (int y = 0; y < 1080; y += 128)
+        {
+            for (int x = 0; x < 1920; x += 128)
+            {
+                SDL_Rect dest_rect = { x, y, 128, 128 };
+                SDL_RenderCopy (renderer,
+                                grass_texture,
+                                NULL,
+                                &dest_rect);
+            }
+        }
 
         /* Structures */
         for (int y = 0; y < 33; y++)
@@ -220,12 +242,25 @@ int jt_run_game (SDL_Renderer *renderer)
             {
                 if (world[y][x] == 1)
                 {
+                    /* Select which all sprite to use based on the
+                     * surrounding walls */
+                    int sprite_index = 0;
+                    if (y != 0 && world[y-1][x] == 1)
+                        sprite_index |= 1;
+                    if (x != 60 && world[y][x+1] == 1)
+                        sprite_index |= 2;
+                    if (y != 32 && world[y+1][x] == 1)
+                        sprite_index |= 4;
+                    if (x != 0 && world[y][x-1] == 1)
+                        sprite_index |= 8;
+
+                    SDL_Rect src_rect = {32 * sprite_index, 0, 32, 32};
                     SDL_Rect dest_rect = { 32.0 * x,
                                            32.0 * y,
                                            32, 32 };
                     SDL_RenderCopy (renderer,
                                     wall_texture,
-                                    NULL,
+                                    &src_rect,
                                     &dest_rect);
                 }
             }
@@ -254,7 +289,7 @@ int jt_run_game (SDL_Renderer *renderer)
         }
     }
 
-    SDL_DestroyTexture (background_texture);
+    SDL_DestroyTexture (grass_texture);
 
     return 0;
 }

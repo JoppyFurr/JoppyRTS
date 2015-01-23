@@ -19,6 +19,28 @@
 
 extern int world [33][60];
 
+/* Instead of using a rectangle of blocks to determine if a path is
+ * clear, it would be better to use just the surrounding path nodes.
+ *
+ * Instead of:
+ *
+ *   ..............G
+ *   ...............
+ *   ...............
+ *   S..............
+ *
+ * It would be better to check:
+ *
+ *           ......G
+ *       ...........
+ *   ...........
+ *   S......
+ *
+ *   1. Calculate distance (S, G)
+ *   2. Compare ( distance (S,n) + distance (n,G) with distancce (S,G).
+ *      If the distance via n is significantly longer than a straight
+ *      line then we don't need to check it.
+ */
 int jt_path_is_clear (jt_path_node *a, jt_path_node *b)
 {
     int min_x = a->x < b->x ? a->x : b->x;
