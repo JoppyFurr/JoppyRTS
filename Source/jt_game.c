@@ -96,6 +96,11 @@ int jt_run_game (SDL_Renderer *renderer)
     int screen_width;
     int screen_height;
 
+    int mouse_cell_x = 0;
+    int mouse_cell_y = 0;
+
+    int placing_wall = 0;
+
     /* Note: Pre-scrolling size is 60x33 */
 
     /* Test Data */
@@ -129,6 +134,8 @@ int jt_run_game (SDL_Renderer *renderer)
     SDL_Texture *selected_unit      = loadTexture (renderer, "./Media/Selected32.png");
     SDL_Texture *unselected_unit    = loadTexture (renderer, "./Media/Unselected32.png");
     SDL_Texture *wall_texture       = loadTexture (renderer, "./Media/Wall.png");
+    SDL_Texture *icons_texture      = loadTexture (renderer, "./Media/Icons.png");
+    SDL_Texture *placement_texture  = loadTexture (renderer, "./Media/Placement.png");
 
     /* Set cursor */
     SDL_Cursor* cursor;
@@ -162,17 +169,49 @@ int jt_run_game (SDL_Renderer *renderer)
 
             if (event.type == SDL_MOUSEBUTTONDOWN)
             {
+                mouse_cell_x = event.button.x / 32;
+                mouse_cell_y = event.button.y / 32;
+
                 switch (event.button.button)
                 {
                     case SDL_BUTTON_LEFT:
-                        jt_select_units (event.button.x, event.button.y, units);
+                        if (event.button.x >= (screen_width - 256 + 6) &&
+                            event.button.x <  (screen_width - 256 + 6 + 122) &&
+                            event.button.y >= (325) &&
+                            event.button.y <  (325 + 64))
+                        {
+                            placing_wall = !placing_wall;
+                        }
+                        else if (placing_wall)
+                        {
+                            if (world[mouse_cell_y][mouse_cell_x] == 0)
+                            {
+                                world[mouse_cell_y][mouse_cell_x] = 1;
+                                placing_wall = 0;
+                            }
+                        }
+                        else
+                            jt_select_units (event.button.x, event.button.y, units);
                         break;
                     case SDL_BUTTON_RIGHT:
-                        jt_move_units (event.button.x, event.button.y, units);
+                        if (placing_wall)
+                        {
+                            placing_wall = 0;
+                        }
+                        else
+                        {
+                            jt_move_units (event.button.x, event.button.y, units);
+                        }
                         break;
                     default:
                         break;
                 }
+            }
+
+            if (event.type == SDL_MOUSEMOTION)
+            {
+                mouse_cell_x = event.motion.x / 32;
+                mouse_cell_y = event.motion.y / 32;
             }
         }
 
@@ -270,6 +309,27 @@ int jt_run_game (SDL_Renderer *renderer)
             }
         }
 
+        /* Placement selector */
+        if (placing_wall)
+        {
+            SDL_Rect src_rect;
+            SDL_Rect dest_rect = { mouse_cell_x * 32, mouse_cell_y * 32, 32, 32 };
+
+            if (world[mouse_cell_y][mouse_cell_x])
+            {
+                src_rect = (SDL_Rect) { 32, 0, 32, 32 };
+            }
+            else
+            {
+                src_rect = (SDL_Rect) { 0, 0, 32, 32 };
+            }
+
+            SDL_RenderCopy (renderer,
+                            placement_texture,
+                            &src_rect,
+                            &dest_rect);
+        }
+
 
         /* Units */
         for (int i = 0; i < 5; i++) /* Currently, five test-units */
@@ -316,6 +376,17 @@ int jt_run_game (SDL_Renderer *renderer)
                                 sidebar_texture,
                                 &src_rect,
                                 &dest_rect);
+
+                if (i == 0)
+                {
+                    /* Wall button */
+                    src_rect = (SDL_Rect) { 0, 0, 122, 64 };
+                    dest_rect = (SDL_Rect) { screen_width - 256 + 6, 325 + 66 * i, 122, 64 };
+                    SDL_RenderCopy (renderer,
+                                    icons_texture,
+                                    &src_rect,
+                                    &dest_rect);
+                }
             }
         }
 
@@ -330,7 +401,13 @@ int jt_run_game (SDL_Renderer *renderer)
         }
     }
 
+    SDL_DestroyTexture (sidebar_texture);
     SDL_DestroyTexture (grass_texture);
+    SDL_DestroyTexture (selected_unit);
+    SDL_DestroyTexture (unselected_unit);
+    SDL_DestroyTexture (wall_texture);
+    SDL_DestroyTexture (icons_texture);
+    SDL_DestroyTexture (placement_texture);
 
     return 0;
 }

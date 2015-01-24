@@ -1,0 +1,10 @@
+Bugs found:
+
+  - If a unit is already moving towards a target and the path becomes blocked,
+    the unit simply goes through the obstacle.
+
+  - It is possible to build on a square that is occupied by a unit.
+
+To do:
+
+  - If no path exists from S to G, we should attempt to get as close as we can anyway.
