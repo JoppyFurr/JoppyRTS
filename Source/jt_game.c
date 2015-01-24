@@ -93,6 +93,9 @@ int jt_run_game (SDL_Renderer *renderer)
     uint32_t frame_start;
     uint32_t frame_stop;
 
+    int screen_width;
+    int screen_height;
+
     /* Note: Pre-scrolling size is 60x33 */
 
     /* Test Data */
@@ -121,10 +124,11 @@ int jt_run_game (SDL_Renderer *renderer)
 
 
     /* Load textures */
-    SDL_Texture *grass_texture     = loadTexture (renderer, "./Media/Grass.png");
-    SDL_Texture *selected_unit          = loadTexture (renderer, "./Media/Selected32.png");
-    SDL_Texture *unselected_unit        = loadTexture (renderer, "./Media/Unselected32.png");
-    SDL_Texture *wall_texture           = loadTexture (renderer, "./Media/Wall.png");
+    SDL_Texture *sidebar_texture    = loadTexture (renderer, "./Media/Sidebar.png");
+    SDL_Texture *grass_texture      = loadTexture (renderer, "./Media/Grass.png");
+    SDL_Texture *selected_unit      = loadTexture (renderer, "./Media/Selected32.png");
+    SDL_Texture *unselected_unit    = loadTexture (renderer, "./Media/Unselected32.png");
+    SDL_Texture *wall_texture       = loadTexture (renderer, "./Media/Wall.png");
 
     /* Set cursor */
     SDL_Cursor* cursor;
@@ -134,6 +138,7 @@ int jt_run_game (SDL_Renderer *renderer)
     for (;;)
     {
         frame_start = SDL_GetTicks ();
+        SDL_GetRendererOutputSize(renderer, &screen_width, &screen_height);
 
         /* -- Process input -- */
         while (SDL_PollEvent (&event))
@@ -222,10 +227,9 @@ int jt_run_game (SDL_Renderer *renderer)
 
         /* Silly and trivial for now */
         /* This will need to be re-done once there is scrolling */
-        /* TODO: Kill the magic numbers! */
-        for (int y = 0; y < 1080; y += 128)
+        for (int y = 0; y < screen_height; y += 128)
         {
-            for (int x = 0; x < 1920; x += 128)
+            for (int x = 0; x < screen_width; x += 128)
             {
                 SDL_Rect dest_rect = { x, y, 128, 128 };
                 SDL_RenderCopy (renderer,
@@ -278,6 +282,43 @@ int jt_run_game (SDL_Renderer *renderer)
                             NULL,
                             &dest_rect);
         }
+
+        /* Sidebar - Eventually give this its own file */
+        {
+            SDL_Rect src_rect;
+            SDL_Rect dest_rect;
+
+            /* Clear */
+            for (int y = 0; y < screen_height ; y += 66)
+            {
+                src_rect = (SDL_Rect) { 0, 391, 256, 66 };
+                dest_rect = (SDL_Rect) { screen_width - 256, y, 256, 66 };
+                SDL_RenderCopy (renderer,
+                                sidebar_texture,
+                                &src_rect,
+                                &dest_rect);
+            }
+
+            /* Map and buttons */
+            src_rect = (SDL_Rect) { 0, 0, 256, 324 };
+            dest_rect = (SDL_Rect) { screen_width - 256, 0, 256, 324 };
+            SDL_RenderCopy (renderer,
+                            sidebar_texture,
+                            &src_rect,
+                            &dest_rect);
+
+            /* Buy buttons */
+            for (int i = 0; i < ((screen_height - 324) / 66) ; i++)
+            {
+                src_rect = (SDL_Rect) { 0, 325, 256, 66 };
+                dest_rect = (SDL_Rect) { screen_width - 256, 324 + 66 * i, 256, 66 };
+                SDL_RenderCopy (renderer,
+                                sidebar_texture,
+                                &src_rect,
+                                &dest_rect);
+            }
+        }
+
 
         SDL_RenderPresent (renderer);
 
