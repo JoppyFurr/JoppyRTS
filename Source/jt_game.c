@@ -6,14 +6,11 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 
-#include "jt_helpers.h"
+#include "jt_texture.h"
 #include "jt_path.h"
+#include "jt_sidebar.h"
 
 #define FRAME_LIMIT 60
-
-/* Notes:
- *  - The game is played on a grid. For now, lets just use 32x32 pixel blocks for the grid.
- */
 
 typedef struct jt_unit_struct
 {
@@ -52,8 +49,6 @@ void jt_move_units (double x, double y, jt_unit *units)
             units[i].x_goal = x;
             units[i].y_goal = y;
 
-            /* TODO - If we already have a path, destroy that before
-             *        making a new one. */
             if (units[i].path)
             {
                 jt_path_free (units[i].path);
@@ -155,13 +150,8 @@ int jt_run_game (SDL_Renderer *renderer)
 
 
     /* Load textures */
-    SDL_Texture *sidebar_texture    = loadTexture (renderer, "./Media/Sidebar.png");
-    SDL_Texture *grass_texture      = loadTexture (renderer, "./Media/Grass.png");
-    SDL_Texture *selected_unit      = loadTexture (renderer, "./Media/Selected32.png");
-    SDL_Texture *unselected_unit    = loadTexture (renderer, "./Media/Unselected32.png");
-    SDL_Texture *wall_texture       = loadTexture (renderer, "./Media/Wall.png");
-    SDL_Texture *icons_texture      = loadTexture (renderer, "./Media/Icons.png");
-    SDL_Texture *placement_texture  = loadTexture (renderer, "./Media/Placement.png");
+    jt_rts_textures_load (renderer);
+    jt_rts_textures *rts_textures = jt_rts_textures_get ();
 
     /* Set cursor */
     SDL_Cursor* cursor;
@@ -318,9 +308,7 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Camera calculations */
-        /* TODO: This is in world-space. Make this obvious and use it */
-        /* TODO: Calculations should consider that we've chopped off the sidebar */
-        camera_width = screen_width / 32.0;
+        camera_width = (screen_width - 256 ) / 32.0; /* Subtract sidebar width */
         camera_height  = screen_height / 32.0;
         camera_top = camera_y - camera_height / 2;
         camera_bottom = camera_y + camera_height / 2;
@@ -390,7 +378,7 @@ int jt_run_game (SDL_Renderer *renderer)
                                        (y - camera_top) * 32,
                                        128, 128 };
                 SDL_RenderCopy (renderer,
-                                grass_texture,
+                                rts_textures->grass,
                                 NULL,
                                 &dest_rect);
             }
@@ -420,7 +408,7 @@ int jt_run_game (SDL_Renderer *renderer)
                                            32.0 * (y - camera_top),
                                            32, 32 };
                     SDL_RenderCopy (renderer,
-                                    wall_texture,
+                                    rts_textures->wall,
                                     &src_rect,
                                     &dest_rect);
                 }
@@ -435,9 +423,6 @@ int jt_run_game (SDL_Renderer *renderer)
                                    (mouse_cell_y - camera_top) * 32,
                                    32, 32 };
 
-            printf ("mouse_cell_y = %d. camera_top = %f.\n", mouse_cell_y, camera_top);
-            printf ("DestRect begins at (%d, %d)\n", dest_rect.x, dest_rect.y);
-
             if (world[mouse_cell_y][mouse_cell_x])
             {
                 src_rect = (SDL_Rect) { 32, 0, 32, 32 };
@@ -448,7 +433,7 @@ int jt_run_game (SDL_Renderer *renderer)
             }
 
             SDL_RenderCopy (renderer,
-                            placement_texture,
+                            rts_textures->placement,
                             &src_rect,
                             &dest_rect);
         }
@@ -461,58 +446,14 @@ int jt_run_game (SDL_Renderer *renderer)
                                    32.0 * (units[i].y_position - 0.5 - camera_top),
                                    32, 32 };
             SDL_RenderCopy (renderer,
-                            units[i].selected ? selected_unit : unselected_unit,
+                            units[i].selected
+                                ? rts_textures->selected_unit
+                                : rts_textures->unselected_unit,
                             NULL,
                             &dest_rect);
         }
 
-        /* Sidebar - Eventually give this its own file */
-        {
-            SDL_Rect src_rect;
-            SDL_Rect dest_rect;
-
-            /* Clear */
-            for (int y = 0; y < screen_height ; y += 66)
-            {
-                src_rect = (SDL_Rect) { 0, 391, 256, 66 };
-                dest_rect = (SDL_Rect) { screen_width - 256, y, 256, 66 };
-                SDL_RenderCopy (renderer,
-                                sidebar_texture,
-                                &src_rect,
-                                &dest_rect);
-            }
-
-            /* Map and buttons */
-            src_rect = (SDL_Rect) { 0, 0, 256, 324 };
-            dest_rect = (SDL_Rect) { screen_width - 256, 0, 256, 324 };
-            SDL_RenderCopy (renderer,
-                            sidebar_texture,
-                            &src_rect,
-                            &dest_rect);
-
-            /* Buy buttons */
-            for (int i = 0; i < ((screen_height - 324) / 66) ; i++)
-            {
-                src_rect = (SDL_Rect) { 0, 325, 256, 66 };
-                dest_rect = (SDL_Rect) { screen_width - 256, 324 + 66 * i, 256, 66 };
-                SDL_RenderCopy (renderer,
-                                sidebar_texture,
-                                &src_rect,
-                                &dest_rect);
-
-                if (i == 0)
-                {
-                    /* Wall button */
-                    src_rect = (SDL_Rect) { 0, 0, 122, 64 };
-                    dest_rect = (SDL_Rect) { screen_width - 256 + 6, 325 + 66 * i, 122, 64 };
-                    SDL_RenderCopy (renderer,
-                                    icons_texture,
-                                    &src_rect,
-                                    &dest_rect);
-                }
-            }
-        }
-
+        jt_sidebar_render (renderer);
 
         SDL_RenderPresent (renderer);
 
@@ -524,13 +465,7 @@ int jt_run_game (SDL_Renderer *renderer)
         }
     }
 
-    SDL_DestroyTexture (sidebar_texture);
-    SDL_DestroyTexture (grass_texture);
-    SDL_DestroyTexture (selected_unit);
-    SDL_DestroyTexture (unselected_unit);
-    SDL_DestroyTexture (wall_texture);
-    SDL_DestroyTexture (icons_texture);
-    SDL_DestroyTexture (placement_texture);
+    jt_rts_textures_free ();
 
     return 0;
 }

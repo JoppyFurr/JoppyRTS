@@ -7,6 +7,13 @@ Bugs found:
 
   - Changing direction while solving a maze results in a coredump.
 
+  - Attempting to build outside of the world -> Crash
+
 To do:
 
   - If no path exists from S to G, we should attempt to get as close as we can anyway.
+
+  - Tidy up mouse coordinate code - We should already have calculated for this frame by the time we
+    call any movement functions.
+
+  - Allow zooming. Blocks should no longer be fixed 32x32 pixel blocks.
