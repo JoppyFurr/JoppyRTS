@@ -5,6 +5,8 @@ Bugs found:
 
   - It is possible to build on a square that is occupied by a unit.
 
+  - Changing direction while solving a maze results in a coredump.
+
 To do:
 
   - If no path exists from S to G, we should attempt to get as close as we can anyway.

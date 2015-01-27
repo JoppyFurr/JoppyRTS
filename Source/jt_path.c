@@ -17,7 +17,7 @@
 
 /* TODO: Get rid of this [33][60] stuff */
 
-extern int world [33][60];
+extern int world [100][100];
 
 /* Instead of using a rectangle of blocks to determine if a path is
  * clear, it would be better to use just the surrounding path nodes.
@@ -129,13 +129,13 @@ void jt_path_node_neighbours (ASNeighborList neighbors, void *node, void *contex
         have_north = 1;
     }
     /* South */
-    if (south.y < 33 && world[south.y][south.x] == 0)
+    if (south.y < 100 && world[south.y][south.x] == 0)
     {
         ASNeighborListAdd(neighbors, &south, 1);
         have_south = 1;
     }
     /* East */
-    if (east.x < 60 && world[east.y][east.x] == 0)
+    if (east.x < 100 && world[east.y][east.x] == 0)
     {
         ASNeighborListAdd(neighbors, &east, 1);
         have_east = 1;
