@@ -2,8 +2,7 @@ typedef struct jt_rts_textures_struct
 {
     SDL_Texture *sidebar;
     SDL_Texture *grass;
-    SDL_Texture *selected_unit;
-    SDL_Texture *unselected_unit;
+    SDL_Texture *unit;
     SDL_Texture *wall;
     SDL_Texture *icons;
     SDL_Texture *placement;

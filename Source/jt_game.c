@@ -444,11 +444,9 @@ int jt_run_game (SDL_Renderer *renderer)
         {
             SDL_Rect dest_rect = { 32.0 * (units[i].x_position - 0.5 - camera_left),
                                    32.0 * (units[i].y_position - 0.5 - camera_top),
-                                   32, 32 };
+                                   16, 24 };
             SDL_RenderCopy (renderer,
-                            units[i].selected
-                                ? rts_textures->selected_unit
-                                : rts_textures->unselected_unit,
+                            rts_textures->unit,
                             NULL,
                             &dest_rect);
         }

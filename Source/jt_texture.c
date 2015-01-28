@@ -32,8 +32,7 @@ int jt_rts_textures_load (SDL_Renderer *renderer)
 {
     _rts_textures.sidebar            = jt_load_texture (renderer, "./Media/Sidebar.png");
     _rts_textures.grass              = jt_load_texture (renderer, "./Media/Grass.png");
-    _rts_textures.selected_unit      = jt_load_texture (renderer, "./Media/Selected32.png");
-    _rts_textures.unselected_unit    = jt_load_texture (renderer, "./Media/Unselected32.png");
+    _rts_textures.unit               = jt_load_texture (renderer, "./Media/Unit.png");
     _rts_textures.wall               = jt_load_texture (renderer, "./Media/Wall.png");
     _rts_textures.icons              = jt_load_texture (renderer, "./Media/Icons.png");
     _rts_textures.placement          = jt_load_texture (renderer, "./Media/Placement.png");
@@ -44,8 +43,7 @@ int jt_rts_textures_free ()
 {
     SDL_DestroyTexture (_rts_textures.sidebar);
     SDL_DestroyTexture (_rts_textures.grass);
-    SDL_DestroyTexture (_rts_textures.selected_unit);
-    SDL_DestroyTexture (_rts_textures.unselected_unit);
+    SDL_DestroyTexture (_rts_textures.unit);
     SDL_DestroyTexture (_rts_textures.wall);
     SDL_DestroyTexture (_rts_textures.icons);
     SDL_DestroyTexture (_rts_textures.placement);
