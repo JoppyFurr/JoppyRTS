@@ -442,13 +442,51 @@ int jt_run_game (SDL_Renderer *renderer)
         /* Units */
         for (int i = 0; i < 5; i++) /* Currently, five test-units */
         {
-            SDL_Rect dest_rect = { 32.0 * (units[i].x_position - 0.5 - camera_left),
-                                   32.0 * (units[i].y_position - 0.5 - camera_top),
+            double x_position = units[i].x_position;
+            double y_position = units[i].y_position;
+
+            /* TODO: Currently we just centre the texture. But the tallness
+             *       of a unit should allow rendering into the above cell */
+            SDL_Rect dest_rect = { 32.0 * (x_position - 0.25 - camera_left),
+                                   32.0 * (y_position - 0.375 - camera_top),
                                    16, 24 };
             SDL_RenderCopy (renderer,
                             rts_textures->unit,
                             NULL,
                             &dest_rect);
+            if(units[i].selected)
+            {
+                SDL_Rect src_rect;
+                SDL_Rect dest_rect;
+
+                /* Top left */
+                src_rect  = (SDL_Rect) { 0, 0, 4, 4 };
+                dest_rect = (SDL_Rect) { 32.0 * (x_position - 0.25 - camera_left) - 2,
+                                        32.0 * (y_position - 0.375 - camera_top) - 2,
+                                        4, 4 };
+                SDL_RenderCopy (renderer, rts_textures->selector, &src_rect, &dest_rect);
+
+                /* Top right */
+                src_rect  = (SDL_Rect) { 4, 0, 4, 4 };
+                dest_rect = (SDL_Rect) { 32.0 * (x_position + 0.25 - camera_left) - 2,
+                                        32.0 * (y_position - 0.375 - camera_top) - 2,
+                                        4, 4 };
+                SDL_RenderCopy (renderer, rts_textures->selector, &src_rect, &dest_rect);
+
+                /* Bottom left */
+                src_rect  = (SDL_Rect) { 0, 4, 4, 4 };
+                dest_rect = (SDL_Rect) { 32.0 * (x_position - 0.25 - camera_left) - 2,
+                                        32.0 * (y_position + 0.375 - camera_top) - 2,
+                                        4, 4 };
+                SDL_RenderCopy (renderer, rts_textures->selector, &src_rect, &dest_rect);
+
+                /* Bottom right */
+                src_rect  = (SDL_Rect) { 4, 4, 4, 4 };
+                dest_rect = (SDL_Rect) { 32.0 * (x_position + 0.25 - camera_left) - 2,
+                                        32.0 * (y_position + 0.375 - camera_top) - 2,
+                                        4, 4 };
+                SDL_RenderCopy (renderer, rts_textures->selector, &src_rect, &dest_rect);
+            }
         }
 
         jt_sidebar_render (renderer);
