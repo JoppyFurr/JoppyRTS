@@ -40,41 +40,46 @@ void jt_select_units (double x, double y, jt_unit *units)
     }
 }
 
+void jt_move_unit (double x, double y, jt_unit *unit)
+{
+    unit->x_goal = x;
+    unit->y_goal = y;
+
+    if (unit->path)
+    {
+        jt_path_free (unit->path);
+    }
+
+    /*  -- TEMP: Use A* -- */
+    /* Set up callbacks */
+    ASPathNodeSource jt_path_node_source = { sizeof (jt_path_node),
+                                             &jt_path_node_neighbours,
+                                             &jt_path_node_heuristic,
+                                             NULL, NULL };
+
+    /* Run the algorithm */
+    jt_path_node start = { unit->x_position, unit->y_position };
+    jt_path_node goal =  { unit->x_goal,     unit->y_goal     };
+    ASPath path = ASPathCreate (&jt_path_node_source, NULL, &start, &goal);
+
+    /* Does a path exist? */
+    if (ASPathGetCount (path) > 0)
+    {
+        /* Simplify the path */
+        unit->path = jt_path_simplify (path);
+        unit->path_progress = 0;
+    }
+
+    ASPathDestroy (path);
+}
+
 void jt_move_units (double x, double y, jt_unit *units)
 {
     for (int i = 0; i < 5; i++) /* Currently, five test-units */
     {
         if ( units[i].selected )
         {
-            units[i].x_goal = x;
-            units[i].y_goal = y;
-
-            if (units[i].path)
-            {
-                jt_path_free (units[i].path);
-            }
-
-            /*  -- TEMP: Use A* -- */
-            /* Set up callbacks */
-            ASPathNodeSource jt_path_node_source = { sizeof (jt_path_node),
-                                                     &jt_path_node_neighbours,
-                                                     &jt_path_node_heuristic,
-                                                     NULL, NULL };
-
-            /* Run the algorithm */
-            jt_path_node start = { units[i].x_position, units[i].y_position };
-            jt_path_node goal =  { units[i].x_goal,     units[i].y_goal     };
-            ASPath path = ASPathCreate (&jt_path_node_source, NULL, &start, &goal);
-
-            /* Does a path exist? */
-            if (ASPathGetCount (path) > 0)
-            {
-                /* Simplify the path */
-                units[i].path = jt_path_simplify (path);
-                units[i].path_progress = 0;
-            }
-
-            ASPathDestroy (path);
+            jt_move_unit (x, y, &units[i]);
         }
     }
 }
@@ -351,13 +356,25 @@ int jt_run_game (SDL_Renderer *renderer)
                         units[i].y_position = goal_y;
                         units[i].path_progress++;
                     }
-                    /* Otherwise, move at our constant velocity */
+                    /* Otherwise, continue to move towards the goal */
                     else
                     {
-                        double x_direction = (goal_x - unit_x) / distance;
-                        double y_direction = (goal_y - unit_y) / distance;
-                        units[i].x_position += x_direction * distance_per_frame;
-                        units[i].y_position += y_direction * distance_per_frame;
+                        /* TODO: Doing this every frame is overkill… */
+                        /* We need to check that the path is still clear */
+                        jt_path_node current_position = { (int) unit_x, (int) unit_y };
+                        if (!jt_path_is_clear (&current_position, path_node))
+                        {
+                            /* We must recalculate */
+                            jt_move_unit (units[i].x_goal, units[i].y_goal, &units[i]);
+
+                        }
+                        else
+                        {
+                            double x_direction = (goal_x - unit_x) / distance;
+                            double y_direction = (goal_y - unit_y) / distance;
+                            units[i].x_position += x_direction * distance_per_frame;
+                            units[i].y_position += y_direction * distance_per_frame;
+                        }
                     }
                 }
             }

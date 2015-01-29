@@ -11,9 +11,15 @@ Bugs found:
 
 To do:
 
-  - If no path exists from S to G, we should attempt to get as close as we can anyway.
-
   - Tidy up mouse coordinate code - We should already have calculated for this frame by the time we
     call any movement functions.
 
   - Allow zooming. Blocks should no longer be fixed 32x32 pixel blocks.
+
+  - Unit Improvements:
+      -> Buildings should not be placable on units.
+      -> Prevent two units from occupying the same space.
+      -> Move to the closest available square if the goal is occupied or unreachable
+      -> Subdivide squares to allow multiple units per square.
+      -> Rectangle selection.
+      -> Units should be capable of moving out of the way if they block the movement of others.
