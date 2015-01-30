@@ -40,6 +40,24 @@ void jt_select_units (double x, double y, jt_unit *units)
     }
 }
 
+void jt_select_units_box (double x1, double y1,
+                          double x2, double y2, jt_unit *units)
+{
+    for (int i = 0; i < 5; i++) /* Currently, five test-units */
+    {
+        if ( units[i].x_position > fmin (x1, x2) && units[i].x_position < fmax (x1, x2) &&
+             units[i].y_position > fmin (y1, y2) && units[i].y_position < fmax (y1, y2))
+        {
+            units[i].selected = 1;
+        }
+        else
+        {
+            units[i].selected = 0;
+        }
+
+    }
+}
+
 void jt_move_unit (double x, double y, jt_unit *unit)
 {
     unit->x_goal = x;
@@ -223,14 +241,21 @@ int jt_run_game (SDL_Renderer *renderer)
 
                 switch (event.button.button)
                 {
+                    /* TODO: Refactor this to better deal with sidbar buttons
+                     *       and world interaction */
                     case SDL_BUTTON_LEFT:
                         mouse_state &= ~LEFT_BUTTON_DOWN;
 
-                        /* if (mouse_state & MOUSE_HAS_MOVED)
+                        if (mouse_state & MOUSE_HAS_MOVED && !placing_wall)
                         {
-                            TODO: Selection-box code
+                            /* Select all units in the box */
+                            double mouse_down_world_x = camera_left + (mouse_down_x / 32.0);
+                            double mouse_down_world_y = camera_top  + (mouse_down_y / 32.0);
+
+                            jt_select_units_box (mouse_down_world_x, mouse_down_world_y,
+                                                 mouse_world_x, mouse_world_y, units);
                         }
-                        else */
+                        else
                         {
                             if (event.button.x >= (screen_width - 256 + 6) &&
                                 event.button.x <  (screen_width - 256 + 6 + 122) &&
@@ -527,6 +552,19 @@ int jt_run_game (SDL_Renderer *renderer)
                                         4, 4 };
                 SDL_RenderCopy (renderer, rts_textures->selector, &src_rect, &dest_rect);
             }
+        }
+
+        /* Selection box */
+        if ((mouse_state & LEFT_BUTTON_DOWN) &&
+            (mouse_state & MOUSE_HAS_MOVED))
+        {
+            /* TODO: Functions to map between world-space and screen-space */
+            SDL_Rect selection_rectangle = { fmin (mouse_position_x, mouse_down_x),
+                                             fmin (mouse_position_y, mouse_down_y),
+                                             fabs (mouse_position_x - mouse_down_x),
+                                             fabs (mouse_position_y - mouse_down_y) };
+            SDL_SetRenderDrawColor (renderer, 0xF0, 0xF0, 0xF0, 0xFF);
+            SDL_RenderDrawRect (renderer, &selection_rectangle);
         }
 
         jt_sidebar_render (renderer);
