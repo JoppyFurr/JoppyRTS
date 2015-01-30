@@ -85,6 +85,9 @@ void jt_move_units (double x, double y, jt_unit *units)
 }
 
 /* TODO: Globals are bad, mkay. */
+#define WORLD_CLEAR   0
+#define WORLD_WALL    1
+#define WORLD_UNITS   2
 int world [100][100];
 
 #define LEFT_BUTTON_DOWN    0x01
@@ -238,7 +241,9 @@ int jt_run_game (SDL_Renderer *renderer)
                             }
                             else if (placing_wall)
                             {
-                                if (world[mouse_cell_y][mouse_cell_x] == 0)
+                                if (mouse_cell_x >= 0 && mouse_cell_x < 100 &&
+                                    mouse_cell_y >= 0 && mouse_cell_y < 100 &&
+                                    world[mouse_cell_y][mouse_cell_x] == 0)
                                 {
                                     world[mouse_cell_y][mouse_cell_x] = 1;
                                     placing_wall = 0;
@@ -325,6 +330,23 @@ int jt_run_game (SDL_Renderer *renderer)
         mouse_cell_y = camera_top + (mouse_position_y / 32.0);
         mouse_world_x = camera_left + (mouse_position_x / 32.0);
         mouse_world_y = camera_top + (mouse_position_y / 32.0);
+
+        /* World state */
+        /* Clear previous unit positions */
+        for (int y = 0; y < 100; y++)
+        {
+            for (int x = 0; x < 100; x++)
+            {
+                if (world[y][x] == WORLD_UNITS)
+                {
+                    world[y][x] = WORLD_CLEAR;
+                }
+            }
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            world[(int) units[i].y_position][(int) units[i].x_position] = WORLD_UNITS;
+        }
 
         /* Each unit moves towards its goal */
         for (int i = 0; i < 5; i++) /* Currently, five test-units */
@@ -433,7 +455,8 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Placement selector */
-        if (placing_wall)
+        if (placing_wall && mouse_cell_x >= 0 && mouse_cell_x < 100 &&
+                            mouse_cell_y >= 0 && mouse_cell_y < 100)
         {
             SDL_Rect src_rect;
             SDL_Rect dest_rect = { (mouse_cell_x - camera_left) * 32,
