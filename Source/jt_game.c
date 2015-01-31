@@ -9,8 +9,15 @@
 #include "jt_texture.h"
 #include "jt_path.h"
 #include "jt_sidebar.h"
+#include "jt_mouse.h"
 
 #define FRAME_LIMIT 60
+
+/* TODO: Use this */
+int is_in_sidebar (int screen_width, int x)
+{
+    return x >= (screen_width - 256);
+}
 
 typedef struct jt_unit_struct
 {
@@ -102,11 +109,17 @@ void jt_move_units (double x, double y, jt_unit *units)
     }
 }
 
-/* TODO: Globals are bad, mkay. */
 #define WORLD_CLEAR   0
 #define WORLD_WALL    1
 #define WORLD_UNITS   2
+
+/* TODO: Refactor to remove globals */
 int world [100][100];
+SDL_Renderer    *global_renderer;
+double          *global_camera_left;
+double          *global_camera_top;
+int             *global_screen_width;
+
 
 #define LEFT_BUTTON_DOWN    0x01
 #define MIDDLE_BUTTON_DOWN  0x02
@@ -126,19 +139,6 @@ int jt_run_game (SDL_Renderer *renderer)
     double camera_x = 50.0;
     double camera_y = 50.0;
 
-    /* Position at which the mouse button was held down */
-    int mouse_state = 0;
-    int mouse_down_x = 0;
-    int mouse_down_y = 0;
-    int mouse_position_x = 0;
-    int mouse_position_y = 0;
-
-    /* Cell in world-space that the mouse hovers over */
-    int mouse_cell_x = 0;
-    int mouse_cell_y = 0;
-    double mouse_world_x = 0;
-    double mouse_world_y = 0;
-
     /* Are we placing a wall at the moment? */
     int placing_wall = 0;
 
@@ -149,6 +149,12 @@ int jt_run_game (SDL_Renderer *renderer)
     double camera_bottom;
     double camera_left;
     double camera_right;
+
+    /* TODO: Remove globals */
+    global_renderer = renderer;
+    global_camera_left = &camera_left;
+    global_camera_top = &camera_top;
+    global_screen_width = &screen_width;
 
     /* Test Data */
     jt_unit units[] = { { 0,  5.5,  5.5,  5.5,  5.5, NULL, 0 },
@@ -184,12 +190,14 @@ int jt_run_game (SDL_Renderer *renderer)
     cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
     SDL_SetCursor(cursor);
 
+    jt_mouse_state *mouse = jt_mouse_state_get();
+
     for (;;)
     {
         frame_start = SDL_GetTicks ();
-        SDL_GetRendererOutputSize(renderer, &screen_width, &screen_height);
 
-        /* -- Process input -- */
+        /* Retrieve input from SDL */
+        SDL_GetRendererOutputSize(renderer, &screen_width, &screen_height);
         while (SDL_PollEvent (&event))
         {
             if (event.type == SDL_QUIT)
@@ -199,6 +207,7 @@ int jt_run_game (SDL_Renderer *renderer)
 
             if (event.type == SDL_KEYDOWN)
             {
+                /* TODO: Why is this not working? */
                 switch (event.key.keysym.sym)
                 {
                     case SDLK_ESCAPE:
@@ -209,138 +218,104 @@ int jt_run_game (SDL_Renderer *renderer)
                 }
             }
 
-            if (event.type == SDL_MOUSEBUTTONDOWN)
+            if (event.type == SDL_MOUSEBUTTONDOWN ||
+                event.type == SDL_MOUSEBUTTONUP   ||
+                event.type == SDL_MOUSEMOTION)
             {
-                mouse_down_x = event.button.x;
-                mouse_down_y = event.button.y;
-                mouse_state &= ~MOUSE_HAS_MOVED;
-
-                switch (event.button.button)
-                {
-                    case SDL_BUTTON_LEFT:
-                        mouse_state |= LEFT_BUTTON_DOWN;
-                        break;
-
-                    case SDL_BUTTON_RIGHT:
-                        mouse_state |= RIGHT_BUTTON_DOWN;
-
-                    default:
-                        break;
-                }
+                jt_mouse_input (&event);
             }
 
-            if (event.type == SDL_MOUSEBUTTONUP)
-            {
 
-                /* Restore the default arrow */
-                {
-                    SDL_Cursor* cursor;
-                    cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-                    SDL_SetCursor(cursor);
-                }
-
-                switch (event.button.button)
-                {
-                    /* TODO: Refactor this to better deal with sidbar buttons
-                     *       and world interaction */
-                    case SDL_BUTTON_LEFT:
-                        mouse_state &= ~LEFT_BUTTON_DOWN;
-
-                        if (mouse_state & MOUSE_HAS_MOVED && !placing_wall)
-                        {
-                            /* Select all units in the box */
-                            double mouse_down_world_x = camera_left + (mouse_down_x / 32.0);
-                            double mouse_down_world_y = camera_top  + (mouse_down_y / 32.0);
-
-                            jt_select_units_box (mouse_down_world_x, mouse_down_world_y,
-                                                 mouse_world_x, mouse_world_y, units);
-                        }
-                        else
-                        {
-                            if (event.button.x >= (screen_width - 256 + 6) &&
-                                event.button.x <  (screen_width - 256 + 6 + 122) &&
-                                event.button.y >= (325) &&
-                                event.button.y <  (325 + 64))
-                            {
-                                placing_wall = !placing_wall;
-                            }
-                            else if (placing_wall)
-                            {
-                                if (mouse_cell_x >= 0 && mouse_cell_x < 100 &&
-                                    mouse_cell_y >= 0 && mouse_cell_y < 100 &&
-                                    world[mouse_cell_y][mouse_cell_x] == 0)
-                                {
-                                    world[mouse_cell_y][mouse_cell_x] = 1;
-                                    placing_wall = 0;
-                                }
-                            }
-                            else
-                            {
-                                /* TODO: Perhaps move all actions based on mouse coordinates
-                                 *       to after where we have just updated the mouse in
-                                 *       world-space */
-                                jt_select_units (mouse_world_x, mouse_world_y, units);
-                            }
-                        }
-                        break;
-                    case SDL_BUTTON_RIGHT:
-                        mouse_state &= ~RIGHT_BUTTON_DOWN;
-
-                        if (mouse_state & MOUSE_HAS_MOVED)
-                        {
-                            /* Move around the map */
-                        }
-                        else
-                        {
-                            if (placing_wall)
-                            {
-                                placing_wall = 0;
-                            }
-                            else
-                            {
-                                /* TODO: Perhaps move all actions based on mouse coordinates
-                                 *       to after where we have just updated the mouse in
-                                 *       world-space */
-                                jt_move_units (mouse_world_x, mouse_world_y, units);
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                mouse_state &= ~MOUSE_HAS_MOVED;
-            }
-
-            if (event.type == SDL_MOUSEMOTION)
-            {
-                if (mouse_state & (LEFT_BUTTON_DOWN | RIGHT_BUTTON_DOWN))
-                {
-                    /* TODO: Implement a dead-zone */
-                    mouse_state |= MOUSE_HAS_MOVED;
-                    if (mouse_state & RIGHT_BUTTON_DOWN)
-                    {
-                        /* TODO: We probably need to free these things */
-                        SDL_Cursor* cursor;
-                        cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
-                        SDL_SetCursor(cursor);
-                    }
-                }
-                mouse_position_x = event.motion.x;
-                mouse_position_y = event.motion.y;
-
-            }
         }
 
-        /* -- Game Logic -- */
+        switch (mouse->state)
+        {
+            case JT_MOUSE_DEFAULT:
+                break;
+
+            case JT_MOUSE_CLICK_LEFT:
+                if (placing_wall)
+                {
+                        if ((int) mouse->x >= 0 && (int) mouse->x < 100 &&
+                            (int) mouse->y >= 0 && (int) mouse->y < 100 &&
+                            world[(int) mouse->y][(int) mouse->x] == 0)
+                        {
+                            world[(int) mouse->y][(int) mouse->x] = 1;
+                            placing_wall = 0;
+                        }
+                }
+                else
+                {
+                    jt_select_units (mouse->x, mouse->y, units);
+                }
+
+                mouse->state = JT_MOUSE_DEFAULT;
+                break;
+
+            case JT_MOUSE_CLICK_RIGHT:
+                if (placing_wall)
+                {
+                    placing_wall = 0;
+                }
+                else
+                {
+                    jt_move_units (mouse->x, mouse->y, units);
+                }
+
+                mouse->state = JT_MOUSE_DEFAULT;
+                break;
+
+            case JT_MOUSE_RELEASE_LEFT:
+                if (!placing_wall)
+                {
+                    jt_select_units_box (mouse->down_x, mouse->down_y,
+                                         mouse->x, mouse->y, units);
+                }
+
+                mouse->state = JT_MOUSE_DEFAULT;
+                break;
+
+            case JT_MOUSE_RELEASE_RIGHT:
+
+                mouse->state = JT_MOUSE_DEFAULT;
+                break;
+
+            case JT_MOUSE_CLICK_SIDEBAR_LEFT:
+                    if (mouse->sidebar_x >= 6 &&
+                        mouse->sidebar_x <  (6 + 122) &&
+                        mouse->sidebar_y >= 325 &&
+                        mouse->sidebar_y <  (325 + 64))
+                    {
+                        placing_wall = !placing_wall;
+                    }
+
+                mouse->state = JT_MOUSE_DEFAULT;
+                break;
+
+            case JT_MOUSE_CLICK_SIDEBAR_RIGHT:
+                if (placing_wall)
+                {
+                    placing_wall = 0;
+                }
+
+                mouse->state = JT_MOUSE_DEFAULT;
+                break;
+
+            default:
+                break;
+        }
 
         /* Update camera position */
-        if ((mouse_state & RIGHT_BUTTON_DOWN) &&
-            (mouse_state & MOUSE_HAS_MOVED))
+        if (mouse->state == JT_MOUSE_DRAG_RIGHT)
         {
             /* TODO: Fix 60 FPS assumption */
-            camera_x += 4.0 * (mouse_position_x - mouse_down_x) / 32.0 / 60.0;
-            camera_y += 4.0 * (mouse_position_y - mouse_down_y) / 32.0 / 60.0;
+            camera_x += 4.0 * mouse->distance_x / 60.0;
+            camera_y += 4.0 * mouse->distance_y / 60.0;
         }
+
+
+
+        /* Time passes… Units move… */
 
         /* Camera calculations */
         camera_width = (screen_width - 256 ) / 32.0; /* Subtract sidebar width */
@@ -349,12 +324,6 @@ int jt_run_game (SDL_Renderer *renderer)
         camera_bottom = camera_y + camera_height / 2;
         camera_left = camera_x - camera_width / 2;
         camera_right = camera_x + camera_width / 2;
-
-        /* Mouse position in world-space */
-        mouse_cell_x = camera_left + (mouse_position_x / 32.0);
-        mouse_cell_y = camera_top + (mouse_position_y / 32.0);
-        mouse_world_x = camera_left + (mouse_position_x / 32.0);
-        mouse_world_y = camera_top + (mouse_position_y / 32.0);
 
         /* World state */
         /* Clear previous unit positions */
@@ -480,15 +449,15 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Placement selector */
-        if (placing_wall && mouse_cell_x >= 0 && mouse_cell_x < 100 &&
-                            mouse_cell_y >= 0 && mouse_cell_y < 100)
+        if (placing_wall && (int) mouse->x >= 0 && (int) mouse->x < 100 &&
+                            (int) mouse->y >= 0 && (int) mouse->y < 100)
         {
             SDL_Rect src_rect;
-            SDL_Rect dest_rect = { (mouse_cell_x - camera_left) * 32,
-                                   (mouse_cell_y - camera_top) * 32,
+            SDL_Rect dest_rect = { ((int) mouse->x - camera_left) * 32,
+                                   ((int) mouse->y - camera_top) * 32,
                                    32, 32 };
 
-            if (world[mouse_cell_y][mouse_cell_x])
+            if (world[(int) mouse->y][(int) mouse->x])
             {
                 src_rect = (SDL_Rect) { 32, 0, 32, 32 };
             }
@@ -555,14 +524,13 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Selection box */
-        if ((mouse_state & LEFT_BUTTON_DOWN) &&
-            (mouse_state & MOUSE_HAS_MOVED))
+        if (mouse->state == JT_MOUSE_DRAG_LEFT)
         {
             /* TODO: Functions to map between world-space and screen-space */
-            SDL_Rect selection_rectangle = { fmin (mouse_position_x, mouse_down_x),
-                                             fmin (mouse_position_y, mouse_down_y),
-                                             fabs (mouse_position_x - mouse_down_x),
-                                             fabs (mouse_position_y - mouse_down_y) };
+            SDL_Rect selection_rectangle = { 32.0 * (fmin (mouse->x, mouse->down_x) - camera_left),
+                                             32.0 * (fmin (mouse->y, mouse->down_y) - camera_top),
+                                             32.0 * fabs (mouse->x - mouse->down_x),
+                                             32.0 * fabs (mouse->y - mouse->down_y) };
             SDL_SetRenderDrawColor (renderer, 0xF0, 0xF0, 0xF0, 0xFF);
             SDL_RenderDrawRect (renderer, &selection_rectangle);
         }
