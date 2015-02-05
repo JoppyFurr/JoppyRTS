@@ -7,6 +7,7 @@ typedef struct jt_rts_textures_struct
     SDL_Texture *wall;
     SDL_Texture *icons;
     SDL_Texture *placement;
+    SDL_Texture *tent;
 } jt_rts_textures;
 
 SDL_Texture *loadTexture(SDL_Renderer *renderer, char *filename);

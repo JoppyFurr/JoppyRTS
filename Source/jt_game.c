@@ -10,6 +10,7 @@
 #include "jt_path.h"
 #include "jt_sidebar.h"
 #include "jt_mouse.h"
+#include "jt_world.h"
 
 #define FRAME_LIMIT 60
 
@@ -115,12 +116,8 @@ void jt_move_units (double x, double y, jt_unit *units)
     }
 }
 
-#define WORLD_CLEAR   0
-#define WORLD_WALL    1
-#define WORLD_UNITS   2
-
 /* TODO: Refactor to remove globals */
-int world [100][100];
+jt_world_cell world [100][100];
 SDL_Renderer    *global_renderer;
 double          *global_camera_left;
 double          *global_camera_top;
@@ -141,7 +138,8 @@ jt_cell jt_closest (int x, int y)
                 {
                     continue;
                 }
-                if (world[guess.y][guess.x] == WORLD_CLEAR)
+                if (!world[guess.y][guess.x].contains_unit &&
+                    !world[guess.y][guess.x].contains_building)
                 {
                     return guess;
                 }
@@ -150,10 +148,38 @@ jt_cell jt_closest (int x, int y)
     }
 }
 
+void jt_render_placement_selector (SDL_Renderer *renderer, double mouse_x, double mouse_y)
+{
+    jt_rts_textures *rts_textures = jt_rts_textures_get ();
+    SDL_Rect src_rect;
+    SDL_Rect dest_rect = { ((int) mouse_x - *global_camera_left) * 32,
+                           ((int) mouse_y - *global_camera_top) * 32,
+                           32, 32 };
+
+    if (world[(int) mouse_y][(int) mouse_x].contains_unit ||
+        world[(int) mouse_y][(int) mouse_x].contains_building)
+    {
+        src_rect = (SDL_Rect) { 32, 0, 32, 32 };
+    }
+    else
+    {
+        src_rect = (SDL_Rect) { 0, 0, 32, 32 };
+    }
+
+    SDL_RenderCopy (renderer,
+                    rts_textures->placement,
+                    &src_rect,
+                    &dest_rect);
+}
+
 #define LEFT_BUTTON_DOWN    0x01
 #define MIDDLE_BUTTON_DOWN  0x02
 #define RIGHT_BUTTON_DOWN   0x04
 #define MOUSE_HAS_MOVED     0x08
+
+#define JT_PLACING_NONE 0
+#define JT_PLACING_WALL 1
+#define JT_PLACING_TENT 2
 
 int jt_run_game (SDL_Renderer *renderer)
 {
@@ -169,7 +195,7 @@ int jt_run_game (SDL_Renderer *renderer)
     double camera_y = 50.0;
 
     /* Are we placing a wall at the moment? */
-    int placing_wall = 0;
+    int placing = JT_PLACING_NONE;
 
     /* Camera calculations */
     double camera_width;
@@ -192,23 +218,8 @@ int jt_run_game (SDL_Renderer *renderer)
                         { 0, 10.5, 10.5, 10.5, 10.5, NULL, 0 },
                         { 0, 10.5, 15.5, 10.5, 15.5, NULL, 0 } };
 
-    /* Walls:           */
-    /*   0 -> no wall   */
-    /*   1 -> wall      */
-    memset (world, 0, sizeof (int) * 100 * 100);
-
-    /* horseshoe */
-    world [10][29] = 1; world [10][28] = 1; world [10][27] = 1;
-    world [10][30] = 1; world [11][30] = 1; world [12][30] = 1;
-    world [13][30] = 1; world [14][30] = 1; world [14][29] = 1;
-    world [14][28] = 1; world [14][27] = 1;
-
-    /* One block gap */
-    world [10][45] = 1; world [11][45] = 1; world [12][45] = 1;
-    world [13][45] = 1; world [14][45] = 1; world [16][45] = 1;
-    world [17][45] = 1; world [18][45] = 1; world [19][45] = 1;
-    world [20][45] = 1;
-
+    /* Clear the map */
+    memset (world, 0, sizeof (jt_world_cell) * 100 * 100);
 
     /* Load textures */
     jt_rts_textures_load (renderer);
@@ -263,15 +274,39 @@ int jt_run_game (SDL_Renderer *renderer)
                 break;
 
             case JT_MOUSE_CLICK_LEFT:
-                if (placing_wall)
+                if (placing == JT_PLACING_WALL)
                 {
-                        if ((int) mouse->x >= 0 && (int) mouse->x < 100 &&
-                            (int) mouse->y >= 0 && (int) mouse->y < 100 &&
-                            world[(int) mouse->y][(int) mouse->x] == 0)
-                        {
-                            world[(int) mouse->y][(int) mouse->x] = 1;
-                            placing_wall = 0;
-                        }
+                    if ((int) mouse->x >= 0 && (int) mouse->x < 100 &&
+                        (int) mouse->y >= 0 && (int) mouse->y < 100 &&
+                        !world[(int) mouse->y][(int) mouse->x].contains_unit &&
+                        !world[(int) mouse->y][(int) mouse->x].contains_building)
+                    {
+                        world[(int) mouse->y][(int) mouse->x].contains_building = 1;
+                        world[(int) mouse->y][(int) mouse->x].render_as = JT_RENDER_WALL;
+                        placing = JT_PLACING_NONE;
+                    }
+                }
+                else if (placing == JT_PLACING_TENT)
+                {
+                    /* TODO: This is a mess! */
+                    if ((int) mouse->x >= 0 && (int) mouse->x < 100 &&
+                        (int) mouse->y >= 0 && (int) mouse->y < 100 &&
+                        !world[(int) mouse->y    ][(int) mouse->x    ].contains_unit &&
+                        !world[(int) mouse->y    ][(int) mouse->x    ].contains_building &&
+                        !world[(int) mouse->y + 1][(int) mouse->x    ].contains_unit &&
+                        !world[(int) mouse->y + 1][(int) mouse->x    ].contains_building &&
+                        !world[(int) mouse->y    ][(int) mouse->x + 1].contains_unit &&
+                        !world[(int) mouse->y    ][(int) mouse->x + 1].contains_building &&
+                        !world[(int) mouse->y + 1][(int) mouse->x + 1].contains_unit &&
+                        !world[(int) mouse->y + 1][(int) mouse->x + 1].contains_building)
+                    {
+                        world[(int) mouse->y    ][(int) mouse->x    ].contains_building = 1;
+                        world[(int) mouse->y + 1][(int) mouse->x    ].contains_building = 1;
+                        world[(int) mouse->y    ][(int) mouse->x + 1].contains_building = 1;
+                        world[(int) mouse->y + 1][(int) mouse->x + 1].contains_building = 1;
+                        world[(int) mouse->y    ][(int) mouse->x].render_as = JT_RENDER_TENT;
+                        placing = JT_PLACING_NONE;
+                    }
                 }
                 else
                 {
@@ -282,9 +317,9 @@ int jt_run_game (SDL_Renderer *renderer)
                 break;
 
             case JT_MOUSE_CLICK_RIGHT:
-                if (placing_wall)
+                if (placing != JT_PLACING_NONE)
                 {
-                    placing_wall = 0;
+                    placing = JT_PLACING_NONE;
                 }
                 else
                 {
@@ -295,7 +330,7 @@ int jt_run_game (SDL_Renderer *renderer)
                 break;
 
             case JT_MOUSE_RELEASE_LEFT:
-                if (!placing_wall)
+                if (placing == JT_PLACING_NONE)
                 {
                     jt_select_units_box (mouse->down_x, mouse->down_y,
                                          mouse->x, mouse->y, units);
@@ -315,16 +350,23 @@ int jt_run_game (SDL_Renderer *renderer)
                         mouse->sidebar_y >= 325 &&
                         mouse->sidebar_y <  (325 + 64))
                     {
-                        placing_wall = !placing_wall;
+                        placing = JT_PLACING_WALL;
+                    }
+                    if (mouse->sidebar_x >= 6 &&
+                        mouse->sidebar_x <  (6 + 122) &&
+                        mouse->sidebar_y >= 325 + 66 &&
+                        mouse->sidebar_y <  (325 + 66 + 64))
+                    {
+                        placing = JT_PLACING_TENT;
                     }
 
                 mouse->state = JT_MOUSE_DEFAULT;
                 break;
 
             case JT_MOUSE_CLICK_SIDEBAR_RIGHT:
-                if (placing_wall)
+                if (placing != JT_PLACING_NONE)
                 {
-                    placing_wall = 0;
+                    placing = JT_PLACING_NONE;
                 }
 
                 mouse->state = JT_MOUSE_DEFAULT;
@@ -360,16 +402,16 @@ int jt_run_game (SDL_Renderer *renderer)
         {
             for (int x = 0; x < 100; x++)
             {
-                if (world[y][x] == WORLD_UNITS)
+                if (world[y][x].contains_unit)
                 {
-                    world[y][x] = WORLD_CLEAR;
+                    world[y][x].contains_unit = 0;
                 }
             }
         }
         for (int i = 0; i < 5; i++)
         {
             /* If there is already a unit here, we should probably move */
-            if (world[(int) units[i].y_position][(int) units[i].x_position] == WORLD_UNITS &&
+            if (world[(int) units[i].y_position][(int) units[i].x_position].contains_unit &&
                 units[i].path == NULL)
             {
                 /* Try move to the nearest empty space */
@@ -378,7 +420,7 @@ int jt_run_game (SDL_Renderer *renderer)
             }
             else
             {
-                world[(int) units[i].y_position][(int) units[i].x_position] = WORLD_UNITS;
+                world[(int) units[i].y_position][(int) units[i].x_position].contains_unit = 1;
             }
         }
 
@@ -462,21 +504,21 @@ int jt_run_game (SDL_Renderer *renderer)
         {
             for (int x = 0; x < 100; x++)
             {
-                if (world[y][x] == 1)
+                if (world[y][x].render_as == JT_RENDER_WALL)
                 {
                     /* Select which all sprite to use based on the
                      * surrounding walls */
                     int sprite_index = 0;
-                    if (y != 0 && world[y-1][x] == 1)
+                    if (y != 0 && world[y-1][x].render_as == JT_RENDER_WALL)
                         sprite_index |= 1;
-                    if (x != 60 && world[y][x+1] == 1)
+                    if (x != 60 && world[y][x+1].render_as == JT_RENDER_WALL)
                         sprite_index |= 2;
-                    if (y != 32 && world[y+1][x] == 1)
+                    if (y != 32 && world[y+1][x].render_as == JT_RENDER_WALL)
                         sprite_index |= 4;
-                    if (x != 0 && world[y][x-1] == 1)
+                    if (x != 0 && world[y][x-1].render_as == JT_RENDER_WALL)
                         sprite_index |= 8;
 
-                    SDL_Rect src_rect = {32 * sprite_index, 0, 32, 32};
+                    SDL_Rect src_rect = { 32 * sprite_index, 0, 32, 32};
                     SDL_Rect dest_rect = { 32.0 * (x - camera_left),
                                            32.0 * (y - camera_top),
                                            32, 32 };
@@ -485,31 +527,36 @@ int jt_run_game (SDL_Renderer *renderer)
                                     &src_rect,
                                     &dest_rect);
                 }
+
+                if (world[y][x].render_as == JT_RENDER_TENT)
+                {
+                    SDL_Rect src_rect = { 0, 0, 64, 64};
+                    SDL_Rect dest_rect = { 32.0 * (x - camera_left),
+                                           32.0 * (y - camera_top),
+                                           64, 64 };
+                    SDL_RenderCopy (renderer,
+                                    rts_textures->tent,
+                                    &src_rect,
+                                    &dest_rect);
+                }
             }
         }
 
         /* Placement selector */
-        if (placing_wall && (int) mouse->x >= 0 && (int) mouse->x < 100 &&
-                            (int) mouse->y >= 0 && (int) mouse->y < 100)
+        if ((int) mouse->x >= 0 && (int) mouse->x < 100 &&
+            (int) mouse->y >= 0 && (int) mouse->y < 100)
         {
-            SDL_Rect src_rect;
-            SDL_Rect dest_rect = { ((int) mouse->x - camera_left) * 32,
-                                   ((int) mouse->y - camera_top) * 32,
-                                   32, 32 };
-
-            if (world[(int) mouse->y][(int) mouse->x])
+            if (placing == JT_PLACING_WALL)
             {
-                src_rect = (SDL_Rect) { 32, 0, 32, 32 };
+                jt_render_placement_selector (renderer, mouse->x, mouse->y);
             }
-            else
+            if (placing == JT_PLACING_TENT)
             {
-                src_rect = (SDL_Rect) { 0, 0, 32, 32 };
+                jt_render_placement_selector (renderer, mouse->x,       mouse->y);
+                jt_render_placement_selector (renderer, mouse->x + 1.0, mouse->y);
+                jt_render_placement_selector (renderer, mouse->x,       mouse->y + 1.0);
+                jt_render_placement_selector (renderer, mouse->x + 1.0, mouse->y + 1.0);
             }
-
-            SDL_RenderCopy (renderer,
-                            rts_textures->placement,
-                            &src_rect,
-                            &dest_rect);
         }
 
 
@@ -564,7 +611,7 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Selection box */
-        if (!placing_wall && mouse->state == JT_MOUSE_DRAG_LEFT)
+        if (placing == JT_PLACING_NONE && mouse->state == JT_MOUSE_DRAG_LEFT)
         {
             /* TODO: Functions to map between world-space and screen-space */
             SDL_Rect selection_rectangle = { 32.0 * (fmin (mouse->x, mouse->down_x) - camera_left),

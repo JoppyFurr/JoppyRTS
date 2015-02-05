@@ -37,6 +37,7 @@ int jt_rts_textures_load (SDL_Renderer *renderer)
     _rts_textures.wall               = jt_load_texture (renderer, "./Media/Wall.png");
     _rts_textures.icons              = jt_load_texture (renderer, "./Media/Icons.png");
     _rts_textures.placement          = jt_load_texture (renderer, "./Media/Placement.png");
+    _rts_textures.tent               = jt_load_texture (renderer, "./Media/Tent.png");
     return 0;
 }
 
@@ -49,6 +50,7 @@ int jt_rts_textures_free ()
     SDL_DestroyTexture (_rts_textures.wall);
     SDL_DestroyTexture (_rts_textures.icons);
     SDL_DestroyTexture (_rts_textures.placement);
+    SDL_DestroyTexture (_rts_textures.tent);
     return 0;
 }
 
