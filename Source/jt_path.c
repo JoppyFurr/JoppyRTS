@@ -123,47 +123,47 @@ void jt_path_node_neighbours (ASNeighborList neighbors, void *node, void *contex
     int have_west  = 0;
 
     /* North */
-    if (north.y >= 0 && world[north.y][north.x] == 0)
+    if (north.y >= 0 && world[north.y][north.x] != 1)
     {
         ASNeighborListAdd(neighbors, &north, 1);
         have_north = 1;
     }
     /* South */
-    if (south.y < 100 && world[south.y][south.x] == 0)
+    if (south.y < 100 && world[south.y][south.x] != 1)
     {
         ASNeighborListAdd(neighbors, &south, 1);
         have_south = 1;
     }
     /* East */
-    if (east.x < 100 && world[east.y][east.x] == 0)
+    if (east.x < 100 && world[east.y][east.x] != 1)
     {
         ASNeighborListAdd(neighbors, &east, 1);
         have_east = 1;
     }
     /* West */
-    if (west.x >= 0 && world[west.y][west.x] == 0)
+    if (west.x >= 0 && world[west.y][west.x] != 1)
     {
         ASNeighborListAdd(neighbors, &west, 1);
         have_west = 1;
     }
 
     /* Northeast */
-    if (have_north && have_east && world[northeast.y][northeast.x] == 0)
+    if (have_north && have_east && world[northeast.y][northeast.x] != 1)
     {
         ASNeighborListAdd(neighbors, &northeast, 1);
     }
     /* Northwest */
-    if (have_north && have_west && world[northwest.y][northwest.x] == 0)
+    if (have_north && have_west && world[northwest.y][northwest.x] != 1)
     {
         ASNeighborListAdd(neighbors, &northwest, 1);
     }
     /* Southeast */
-    if (have_south && have_east && world[southeast.y][southeast.x] == 0)
+    if (have_south && have_east && world[southeast.y][southeast.x] != 1)
     {
         ASNeighborListAdd(neighbors, &southeast, 1);
     }
     /* Southwest */
-    if (have_south && have_west && world[southwest.y][southwest.x] == 0)
+    if (have_south && have_west && world[southwest.y][southwest.x] != 1)
     {
         ASNeighborListAdd(neighbors, &southwest, 1);
     }

@@ -30,6 +30,12 @@ typedef struct jt_unit_struct
     int path_progress;
 } jt_unit;
 
+typedef struct jt_cell_struct
+{
+    int x;
+    int y;
+} jt_cell;
+
 void jt_select_units (double x, double y, jt_unit *units)
 {
     for (int i = 0; i < 5; i++) /* Currently, five test-units */
@@ -120,6 +126,29 @@ double          *global_camera_left;
 double          *global_camera_top;
 int             *global_screen_width;
 
+/* Find the closest non-populated cell in the world */
+jt_cell jt_closest (int x, int y)
+{
+    jt_cell guess;
+    for (int distance = 1; distance < 10 ; distance++)
+    {
+        for (guess.x = x - distance; guess.x <= x + distance; guess.x++)
+        {
+            for (guess.y = y - distance; guess.y <= y + distance; guess.y++)
+            {
+                if (guess.x < 0 || guess.x >= 100 ||
+                    guess.y < 0 || guess.x >= 100)
+                {
+                    continue;
+                }
+                if (world[guess.y][guess.x] == WORLD_CLEAR)
+                {
+                    return guess;
+                }
+            }
+        }
+    }
+}
 
 #define LEFT_BUTTON_DOWN    0x01
 #define MIDDLE_BUTTON_DOWN  0x02
@@ -339,7 +368,18 @@ int jt_run_game (SDL_Renderer *renderer)
         }
         for (int i = 0; i < 5; i++)
         {
-            world[(int) units[i].y_position][(int) units[i].x_position] = WORLD_UNITS;
+            /* If there is already a unit here, we should probably move */
+            if (world[(int) units[i].y_position][(int) units[i].x_position] == WORLD_UNITS &&
+                units[i].path == NULL)
+            {
+                /* Try move to the nearest empty space */
+                jt_cell new = jt_closest ((int) units[i].x_position, (int) units[i].y_position);
+                jt_move_unit (new.x + 0.5, new.y + 0.5, &units[i]);
+            }
+            else
+            {
+                world[(int) units[i].y_position][(int) units[i].x_position] = WORLD_UNITS;
+            }
         }
 
         /* Each unit moves towards its goal */
@@ -524,7 +564,7 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Selection box */
-        if (mouse->state == JT_MOUSE_DRAG_LEFT)
+        if (!placing_wall && mouse->state == JT_MOUSE_DRAG_LEFT)
         {
             /* TODO: Functions to map between world-space and screen-space */
             SDL_Rect selection_rectangle = { 32.0 * (fmin (mouse->x, mouse->down_x) - camera_left),
