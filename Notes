@@ -1,28 +1,14 @@
-Bugs found:
+Bugs:
 
   - If a unit is already moving towards a target and the path becomes blocked,
     the unit simply goes through the obstacle.
 
-  - It is possible to build on a square that is occupied by a unit.
-
-  - Changing direction while solving a maze results in a coredump.
-
-  - Attempting to build outside of the world -> Crash
-
   - Blocking in the area a unit is moving towards results in a coredump.
 
+  - Units may step out of the way when another unit passes, but never take back
+    their old spot.
+
 To do:
-
-  - Tidy up mouse coordinate code - We should already have calculated for this frame by the time we
-    call any movement functions.
-
-  - Allow zooming. Blocks should no longer be fixed 32x32 pixel blocks.
-
-  - Code to convert between pixel space and world space
-
-  - Dead zone for dragging
-
-  - Dragging on a button should still press the button if the entire drag is contained in the button
 
   - Unit Improvements:
       -> Prevent two units from occupying the same space.
@@ -30,23 +16,14 @@ To do:
       -> Subdivide squares to allow multiple units per square.
       -> Units should be capable of moving out of the way if they block the movement of others.
 
+  - Building Improvements:
+      -> Allow multiple wall pieces to be built at once
 
-Main loop prototype:
-
-    Process SDL Input
-        -> Involves converting pixel-space to world-space.
-
-    Process game events
-        -> This should not even be aware of pixel-space.
-
-    Simulate
-        -> Time passes, units move.
-
-    Render
-        -> Take the game state, and spit out a frame.
-
-    Framelimit
-        -> 60 fps is enough for now.
-
-Implementation steps:
-    Break mouse input into a seperate file. Only a world-space data structure should be exposede.
+  - Interface Improvements:
+      -> Better sprites
+      -> Keyboard shortcuts
+      -> Minimap
+      -> A small drag on a sidebar button should count as a click
+      -> Drag deadzone
+      -> Sidebar clicks should return buttons, not pixel coordinates
+      -> Allow zooming. Blocks should no longer be fixed at 32x32 pixels.

@@ -31,6 +31,10 @@ typedef struct jt_unit_struct
     int path_progress;
 } jt_unit;
 
+/* TODO: A better unit data structure */
+jt_unit units[1000];
+int global_unit_count = 0;
+
 typedef struct jt_cell_struct
 {
     int x;
@@ -39,7 +43,7 @@ typedef struct jt_cell_struct
 
 void jt_select_units (double x, double y, jt_unit *units)
 {
-    for (int i = 0; i < 5; i++) /* Currently, five test-units */
+    for (int i = 0; i < global_unit_count; i++) /* Currently, five test-units */
     {
         if ( x > (units[i].x_position - 0.5) && x < (units[i].x_position + 0.5) &&
              y > (units[i].y_position - 0.5) && y < (units[i].y_position + 0.5))
@@ -57,7 +61,7 @@ void jt_select_units (double x, double y, jt_unit *units)
 void jt_select_units_box (double x1, double y1,
                           double x2, double y2, jt_unit *units)
 {
-    for (int i = 0; i < 5; i++) /* Currently, five test-units */
+    for (int i = 0; i < global_unit_count; i++) /* Currently, five test-units */
     {
         if ( units[i].x_position > fmin (x1, x2) && units[i].x_position < fmax (x1, x2) &&
              units[i].y_position > fmin (y1, y2) && units[i].y_position < fmax (y1, y2))
@@ -107,7 +111,7 @@ void jt_move_unit (double x, double y, jt_unit *unit)
 
 void jt_move_units (double x, double y, jt_unit *units)
 {
-    for (int i = 0; i < 5; i++) /* Currently, five test-units */
+    for (int i = 0; i < global_unit_count; i++) /* Currently, five test-units */
     {
         if ( units[i].selected )
         {
@@ -172,14 +176,33 @@ void jt_render_placement_selector (SDL_Renderer *renderer, double mouse_x, doubl
                     &dest_rect);
 }
 
-#define LEFT_BUTTON_DOWN    0x01
-#define MIDDLE_BUTTON_DOWN  0x02
-#define RIGHT_BUTTON_DOWN   0x04
-#define MOUSE_HAS_MOVED     0x08
+/* TODO: A better data structure for buildings */
+jt_world_cell *primary_tent = NULL;
+int primary_tent_x = 0;
+int primary_tent_y = 0;
+
+void jt_new_unit ()
+{
+    if (!primary_tent)
+    {
+        return;
+    }
+
+    units[global_unit_count++] = (jt_unit) { 0,
+                                             primary_tent_x + 0.5,
+                                             primary_tent_y + 2.5,
+                                             primary_tent_x + 0.5,
+                                             primary_tent_y + 2.5,
+                                             NULL,
+                                             0 };
+}
 
 #define JT_PLACING_NONE 0
 #define JT_PLACING_WALL 1
 #define JT_PLACING_TENT 2
+
+#define JT_ACTION_NONE 0
+#define JT_ACTION_BUILD_UNIT 1
 
 int jt_run_game (SDL_Renderer *renderer)
 {
@@ -196,6 +219,7 @@ int jt_run_game (SDL_Renderer *renderer)
 
     /* Are we placing a wall at the moment? */
     int placing = JT_PLACING_NONE;
+    int action = JT_ACTION_NONE;
 
     /* Camera calculations */
     double camera_width;
@@ -210,13 +234,6 @@ int jt_run_game (SDL_Renderer *renderer)
     global_camera_left = &camera_left;
     global_camera_top = &camera_top;
     global_screen_width = &screen_width;
-
-    /* Test Data */
-    jt_unit units[] = { { 0,  5.5,  5.5,  5.5,  5.5, NULL, 0 },
-                        { 0,  5.5, 10.5,  5.5, 10.5, NULL, 0 },
-                        { 0, 10.5,  5.5, 10.5,  5.5, NULL, 0 },
-                        { 0, 10.5, 10.5, 10.5, 10.5, NULL, 0 },
-                        { 0, 10.5, 15.5, 10.5, 15.5, NULL, 0 } };
 
     /* Clear the map */
     memset (world, 0, sizeof (jt_world_cell) * 100 * 100);
@@ -306,6 +323,9 @@ int jt_run_game (SDL_Renderer *renderer)
                         world[(int) mouse->y + 1][(int) mouse->x + 1].contains_building = 1;
                         world[(int) mouse->y    ][(int) mouse->x].render_as = JT_RENDER_TENT;
                         placing = JT_PLACING_NONE;
+                        primary_tent = &world[(int) mouse->y][(int) mouse->x];
+                        primary_tent_x = (int) mouse->x;
+                        primary_tent_y = (int) mouse->y;
                     }
                 }
                 else
@@ -345,20 +365,29 @@ int jt_run_game (SDL_Renderer *renderer)
                 break;
 
             case JT_MOUSE_CLICK_SIDEBAR_LEFT:
-                    if (mouse->sidebar_x >= 6 &&
-                        mouse->sidebar_x <  (6 + 122) &&
-                        mouse->sidebar_y >= 325 &&
-                        mouse->sidebar_y <  (325 + 64))
-                    {
-                        placing = JT_PLACING_WALL;
-                    }
-                    if (mouse->sidebar_x >= 6 &&
-                        mouse->sidebar_x <  (6 + 122) &&
-                        mouse->sidebar_y >= 325 + 66 &&
-                        mouse->sidebar_y <  (325 + 66 + 64))
-                    {
-                        placing = JT_PLACING_TENT;
-                    }
+                /* TODO: Click event should return a button ID so that
+                 *       we don't need to do any pixelmath here */
+                if (mouse->sidebar_x >= 6 &&
+                    mouse->sidebar_x <  (6 + 122) &&
+                    mouse->sidebar_y >= 325 &&
+                    mouse->sidebar_y <  (325 + 64))
+                {
+                    placing = JT_PLACING_WALL;
+                }
+                else if (mouse->sidebar_x >= 6 &&
+                    mouse->sidebar_x <  (6 + 122) &&
+                    mouse->sidebar_y >= 325 + 66 &&
+                    mouse->sidebar_y <  (325 + 66 + 64))
+                {
+                    placing = JT_PLACING_TENT;
+                }
+                else if (mouse->sidebar_x >= 6 + 124 &&
+                    mouse->sidebar_x <  (6 + 122 + 124) &&
+                    mouse->sidebar_y >= 325 &&
+                    mouse->sidebar_y <  (325 + 64))
+                {
+                    action = JT_ACTION_BUILD_UNIT;
+                }
 
                 mouse->state = JT_MOUSE_DEFAULT;
                 break;
@@ -384,10 +413,6 @@ int jt_run_game (SDL_Renderer *renderer)
             camera_y += 4.0 * mouse->distance_y / 60.0;
         }
 
-
-
-        /* Time passes… Units move… */
-
         /* Camera calculations */
         camera_width = (screen_width - 256 ) / 32.0; /* Subtract sidebar width */
         camera_height  = screen_height / 32.0;
@@ -396,7 +421,14 @@ int jt_run_game (SDL_Renderer *renderer)
         camera_left = camera_x - camera_width / 2;
         camera_right = camera_x + camera_width / 2;
 
-        /* World state */
+        /* World state update */
+
+        if (action == JT_ACTION_BUILD_UNIT)
+        {
+            jt_new_unit();
+            action = JT_ACTION_NONE;
+        }
+
         /* Clear previous unit positions */
         for (int y = 0; y < 100; y++)
         {
@@ -408,7 +440,7 @@ int jt_run_game (SDL_Renderer *renderer)
                 }
             }
         }
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < global_unit_count; i++)
         {
             /* If there is already a unit here, we should probably move */
             if (world[(int) units[i].y_position][(int) units[i].x_position].contains_unit &&
@@ -425,7 +457,7 @@ int jt_run_game (SDL_Renderer *renderer)
         }
 
         /* Each unit moves towards its goal */
-        for (int i = 0; i < 5; i++) /* Currently, five test-units */
+        for (int i = 0; i < global_unit_count; i++) /* Currently, five test-units */
         {
             /* For now, we will assume we always get 60 FPS */
             double distance_per_frame = 5.0 / 60.0; /* Five spaces per second */
@@ -561,7 +593,7 @@ int jt_run_game (SDL_Renderer *renderer)
 
 
         /* Units */
-        for (int i = 0; i < 5; i++) /* Currently, five test-units */
+        for (int i = 0; i < global_unit_count; i++) /* Currently, five test-units */
         {
             double x_position = units[i].x_position;
             double y_position = units[i].y_position;

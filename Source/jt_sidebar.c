@@ -6,6 +6,10 @@
 
 #include "jt_texture.h"
 
+/* TODO: We must do something better than this. */
+#include "jt_world.h"
+extern jt_world_cell *primary_tent;
+
 void jt_sidebar_render (SDL_Renderer *renderer)
 {
     int screen_width;
@@ -55,6 +59,18 @@ void jt_sidebar_render (SDL_Renderer *renderer)
                             rts_textures->icons,
                             &src_rect,
                             &dest_rect);
+
+            /* TODO: We need a tech-tree data structure to better deal with the sidebar */
+            if (primary_tent)
+            {
+                /* Unit button */
+                src_rect = (SDL_Rect) { 244, 0, 122, 64 };
+                dest_rect = (SDL_Rect) { screen_width - 256 + 6 + 124, 325 + 66 * i, 122, 64 };
+                SDL_RenderCopy (renderer,
+                                rts_textures->icons,
+                                &src_rect,
+                                &dest_rect);
+            }
         }
 
         if (i == 1)
