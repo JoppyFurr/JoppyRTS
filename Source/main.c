@@ -19,9 +19,10 @@ int main (int argc, char**argv)
     int running = 1;
 
     /* Initialize things */
-    if (SDL_Init (SDL_INIT_EVERYTHING) == -1)
+    if (SDL_Init (SDL_INIT_TIMER | SDL_INIT_VIDEO) == -1)
     {
         fprintf (stderr, "Error: SDL_Init failed.\n");
+        fprintf (stderr, "%s.\n", SDL_GetError());
         return EXIT_FAILURE;
     }
 

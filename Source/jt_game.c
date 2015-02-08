@@ -543,9 +543,9 @@ int jt_run_game (SDL_Renderer *renderer)
                     int sprite_index = 0;
                     if (y != 0 && world[y-1][x].render_as == JT_RENDER_WALL)
                         sprite_index |= 1;
-                    if (x != 60 && world[y][x+1].render_as == JT_RENDER_WALL)
+                    if (x != 99 && world[y][x+1].render_as == JT_RENDER_WALL)
                         sprite_index |= 2;
-                    if (y != 32 && world[y+1][x].render_as == JT_RENDER_WALL)
+                    if (y != 99 && world[y+1][x].render_as == JT_RENDER_WALL)
                         sprite_index |= 4;
                     if (x != 0 && world[y][x-1].render_as == JT_RENDER_WALL)
                         sprite_index |= 8;
